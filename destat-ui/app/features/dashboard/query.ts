@@ -8,19 +8,19 @@ export const getNumberData = async (
   const { data: lastWeek } = await supabase
     .from('daily_visitor')
     .select('count')
-    .lt('created_at', thisStart)
-    .gte('created_at', lastStart);
+    .lt('day_start', thisStart)
+    .gte('day_start', lastStart);
   const { data: thisWeek } = await supabase
     .from('daily_visitor')
     .select('count')
-    .lt('created_at', End)
-    .gte('created_at', thisStart);
+    .lt('day_start', End)
+    .gte('day_start', thisStart);
   if (lastWeek && thisWeek) {
     const lastWeekCount = lastWeek.reduce((sum, value) => sum + value.count, 0);
     const thisWeekCount = thisWeek.reduce((sum, value) => sum + value.count, 0);
     return {
       value: thisWeekCount.toString(),
-      trendValue: ((thisWeekCount / (lastWeekCount || 1)) * 100).toString(),
+      trendValue: ((thisWeekCount / (lastWeekCount || 1)) * 100).toFixed(1),
       upAndDown: thisWeekCount > lastWeekCount,
     };
   } else {
@@ -51,7 +51,7 @@ export const getSurveyData = async (
     const thisWeekCount = thisWeek.length;
     return {
       value: thisWeekCount.toString(),
-      trendValue: ((thisWeekCount / (lastWeekCount || 1)) * 100).toString(),
+      trendValue: ((thisWeekCount / (lastWeekCount || 1)) * 100).toFixed(1),
       upAndDown: thisWeekCount > lastWeekCount,
     };
   } else {

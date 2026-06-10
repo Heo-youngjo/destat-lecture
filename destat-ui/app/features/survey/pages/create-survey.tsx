@@ -1,5 +1,5 @@
 import { Button } from '~/components/ui/button';
-import { Form } from 'react-router';
+import { Form, useNavigate } from 'react-router';
 import {
   Card,
   CardContent,
@@ -8,7 +8,6 @@ import {
   CardTitle,
 } from '~/components/ui/card';
 import { Input } from '~/components/ui/input';
-import type { Route } from './+types/create-survey';
 import { useEffect, useState } from 'react';
 import {
   useAccount,
@@ -19,36 +18,15 @@ import { SURVEY_FACTORY, SURVEY_FACTORY_ABI } from '../constant';
 import { decodeEventLog, parseEther } from 'viem';
 import { supabase } from '~/postgres/supaclient';
 
-export const clientAction = async ({ request }: Route.ClientActionArgs) => {
-  const formData = await request.formData();
-  const metadata = JSON.parse(formData.get('metadata') as string);
-  const imageFile = formData.get('image') as File;
-  const { data, error } = await supabase
-    .storage.from('images')
-    .upload(metadata.id, imageFile);
-  if (!error) {
-    const publicUrl = supabase.storage.from('images').getPublicUrl(data.path);
-    const { data: survey, error } = await supabase.from('survey').insert({
-      id: metadata.id,
-      title: metadata.title,
-      description: metadata.description,
-      target_number: metadata.targetNumber,
-      reward_amount: metadata.rewardAmount,
-      image: publicUrl.data.publicUrl,
-      questions: metadata.questions,
-      owner: metadata.owner,
-    });
-  }
-};
-
 export default function CreateSurvey() {
   const [options, setOptions] = useState([1]);
   const [image, setImage] = useState('');
-  const [formImage, setFormImage] = useState<File>();
+  const [formImage, setFormImage] = useState<File | null>(null);
   const { data: hash, writeContract } = useWriteContract();
   const { data: receipt, isFetched } = useWaitForTransactionReceipt({
     hash,
   });
+  const navigate = useNavigate();
   const [surveyMeta, setSurveyMeta] = useState<{
     title: string;
     description: string;
@@ -102,8 +80,8 @@ export default function CreateSurvey() {
     const description = formData.get('description') as string;
     const targetNumber = formData.get('target') as string;
     const poolSize = formData.get('pool') as string;
-    const formImg = formData.get('image') as File;
-    setFormImage(formImg);
+    const formImg = formData.get('file') as File;
+    if (formImg && formImg.size > 0) setFormImage(formImg);
     writeContract({
       address: SURVEY_FACTORY,
       abi: SURVEY_FACTORY_ABI,
@@ -128,30 +106,47 @@ export default function CreateSurvey() {
     });
   };
   useEffect(() => {
-    if (!isFetched || !receipt || !formImage) return;
+    if (!isFetched || !receipt || !surveyMeta) return;
     const callAction = async () => {
-      let contractAddress;
+      let contractAddress: `0x${string}` | undefined;
       for (const log of receipt?.logs ?? []) {
-        const event = decodeEventLog({
-          abi: SURVEY_FACTORY_ABI,
-          data: log.data,
-          topics: log.topics,
-        });
-        if (event.eventName === 'SurveyCreated') {
-          contractAddress = event.args.surveyAddress;
+        try {
+          const event = decodeEventLog({
+            abi: SURVEY_FACTORY_ABI,
+            data: log.data,
+            topics: log.topics,
+          });
+          if (event.eventName === 'SurveyCreated') {
+            contractAddress = (event.args as any).surveyAddress;
+          }
+        } catch {}
+      }
+      if (!contractAddress) return;
+
+      let imageUrl = '';
+      if (formImage && formImage.size > 0) {
+        const { data: uploadData, error: uploadError } = await supabase
+          .storage.from('images')
+          .upload(contractAddress, formImage);
+        if (!uploadError && uploadData) {
+          imageUrl = supabase.storage.from('images').getPublicUrl(uploadData.path).data.publicUrl;
         }
       }
-      const formData = new FormData();
-      const newSurveyMeta = {
-        ...surveyMeta,
+
+      await (supabase as any).from('survey').insert({
         id: contractAddress,
-      };
-      formData.append('metadata', JSON.stringify(surveyMeta));
-      formData.append('image', formImage);
-      await fetch('/survey/create', {
-        method: 'post',
-        body: formData,
+        title: surveyMeta.title,
+        description: surveyMeta.description,
+        target_number: Number(surveyMeta.targetNumber),
+        reward_amount: surveyMeta.rewardAmount,
+        image: imageUrl,
+        questions: surveyMeta.questions,
+        owner: surveyMeta.owner,
       });
+
+      await (supabase as any).from('daily_live_survey').insert({ count: 1 });
+
+      navigate('/survey/all');
     };
     callAction();
   }, [receipt]);

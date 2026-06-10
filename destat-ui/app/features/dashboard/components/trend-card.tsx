@@ -1,4 +1,4 @@
-import { TrendingUpIcon } from 'lucide-react';
+import { TrendingUpIcon, TrendingDownIcon } from 'lucide-react';
 import {
   Card,
   CardAction,
@@ -14,28 +14,45 @@ export default function TrendCard({
   trendValue,
   trendMessage,
   periodMessage,
+  upAndDown = true,
 }: {
   title: string;
   value: string;
   trendValue: string;
   trendMessage: string;
   periodMessage: string;
+  upAndDown?: boolean;
 }) {
+  const TrendIcon = upAndDown ? TrendingUpIcon : TrendingDownIcon;
+
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardDescription>{title}</CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+        <CardDescription className="text-sm font-medium">{title}</CardDescription>
+        <CardTitle className="text-3xl font-bold tabular-nums @[250px]/card:text-4xl">
           {value}
         </CardTitle>
         <CardAction>
-          <TrendingUpIcon />
-          {trendValue}
+          <span
+            className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+              upAndDown
+                ? 'bg-emerald-100 text-emerald-700'
+                : 'bg-rose-100 text-rose-700'
+            }`}
+          >
+            <TrendIcon className="size-3" />
+            {trendValue}
+          </span>
         </CardAction>
       </CardHeader>
       <CardFooter className="flex-col items-start gap-1.5 text-sm">
-        <div className="line-clamp-1 flex gap-2 font-medium">
-          {trendMessage} <TrendingUpIcon className="size-4" />
+        <div
+          className={`flex items-center gap-1.5 font-medium ${
+            upAndDown ? 'text-emerald-600' : 'text-rose-600'
+          }`}
+        >
+          <TrendIcon className="size-4" />
+          {trendMessage}
         </div>
         <div className="text-muted-foreground">{periodMessage}</div>
       </CardFooter>

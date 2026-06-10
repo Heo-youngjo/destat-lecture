@@ -3,7 +3,7 @@ import { TrendChart } from '../components/trend-chart';
 import type { Route } from './+types/dashboard';
 import { DateTime } from 'luxon';
 import { supabase } from '~/postgres/supaclient';
-import { getNumberData } from '../query';
+import { getNumberData, getSurveyData } from '../query';
 
 // [Number]
 // Visitors
@@ -45,10 +45,24 @@ export const clientLoader = async ({ request }: Route.ClientLoaderArgs) => {
     });
   }
 
+  const { count: liveTotal } = await supabase
+    .from('survey')
+    .select('*', { count: 'exact', head: true })
+    .eq('finish', false);
+  const { count: archivedTotal } = await supabase
+    .from('survey')
+    .select('*', { count: 'exact', head: true })
+    .eq('finish', true);
   const numberCard = await getNumberData(lastWeekStart, thisWeekStart, thisWeekEnd);
+  const liveTrend = await getSurveyData(lastWeekStart, thisWeekStart, thisWeekEnd, false);
+  const archivedTrend = await getSurveyData(lastWeekStart, thisWeekStart, thisWeekEnd, true);
   return {
     ...numberCard,
     formedLivedSurveyCount,
+    liveValue: (liveTotal ?? 0).toString(),
+    liveTrend,
+    archivedValue: (archivedTotal ?? 0).toString(),
+    archivedTrend,
   };
 };
 
@@ -71,31 +85,38 @@ const data = [
 
 export default function Dashboard({ loaderData }: Route.ComponentProps) {
   return (
-    <div className="flex flex-col items-center justify-center">
-      <div className="grid grid-cols-3 mt-10 gap-5 w-full">
+    <div className="flex flex-col">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground text-sm mt-1">Track your survey platform activity.</p>
+      </div>
+      <div className="grid grid-cols-3 gap-5 w-full">
         <TrendCard
           title="Total Visitors"
           value={loaderData.value}
           trendValue={loaderData.trendValue + '%'}
           trendMessage={loaderData.upAndDown ? 'Trending Up' : 'Trending Down'}
-          periodMessage={'last 7 days'}
+          periodMessage="last 7 days"
+          upAndDown={loaderData.upAndDown}
         />
         <TrendCard
           title="Live Surveys"
-          value="123"
-          trendValue="200%"
-          trendMessage="Trending up"
-          periodMessage="last 6 months"
+          value={loaderData.liveValue}
+          trendValue={loaderData.liveTrend.trendValue + '%'}
+          trendMessage={loaderData.liveTrend.upAndDown ? 'Trending Up' : 'Trending Down'}
+          periodMessage="last 7 days"
+          upAndDown={loaderData.liveTrend.upAndDown}
         />
         <TrendCard
           title="Archived Surveys"
-          value="123,123"
-          trendValue="200%"
-          trendMessage="Trending up"
-          periodMessage="last 6 months"
+          value={loaderData.archivedValue}
+          trendValue={loaderData.archivedTrend.trendValue + '%'}
+          trendMessage={loaderData.archivedTrend.upAndDown ? 'Trending Up' : 'Trending Down'}
+          periodMessage="last 7 days"
+          upAndDown={loaderData.archivedTrend.upAndDown}
         />
       </div>
-      <div className="grid grid-cols-2 mt-5 gap-5 w-full">
+      <div className="grid grid-cols-2 mt-6 gap-5 w-full">
         <TrendChart
           title="Live Surveys"
           description="Daily live survey count"

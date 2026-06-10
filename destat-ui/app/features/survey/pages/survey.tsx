@@ -1,7 +1,6 @@
 import type { Route } from './+types/survey';
-import type { FormEvent } from 'react';
-import { useState, useEffect } from 'react';
-import { useReadContract, useWriteContract, useAccount } from 'wagmi';
+import React, { useState, useEffect } from 'react';
+import { useReadContract, useWriteContract, useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { SendIcon } from 'lucide-react';
 import { Form } from 'react-router';
 import { Button } from '~/components/ui/button';
@@ -32,10 +31,11 @@ export default function Survey({ params }: Route.ComponentProps) {
     args: [],
   });
 
-  const { writeContract } = useWriteContract();
+  const { data: hash, writeContract } = useWriteContract();
+  const { data: receipt } = useWaitForTransactionReceipt({ hash });
   const { address } = useAccount();
 
-  const submitAnswer = (e: FormEvent<HTMLFormElement>) => {
+  const submitAnswer = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!address) {
       alert('Please connect wallet before submiting answer');
@@ -59,12 +59,16 @@ export default function Survey({ params }: Route.ComponentProps) {
     });
   };
 
-  const { data: answers } = useReadContract({
+  const { data: answers, refetch: refetchAnswers } = useReadContract({
     address: (params as { surveyId: string }).surveyId as `0x${string}`,
     abi: SURVEY_ABI,
     functionName: 'getAnswers',
     args: [],
   });
+
+  useEffect(() => {
+    if (receipt) refetchAnswers();
+  }, [receipt]);
 
   const { data: target } = useReadContract({
     address: (params as { surveyId: string }).surveyId as `0x${string}`,
@@ -145,7 +149,7 @@ export default function Survey({ params }: Route.ComponentProps) {
           </CardContent>
         ) : (
           <CardContent>
-            <Form method="post" className="grid grid-cols-2" onSubmit={submitAnswer}>
+            <Form id="survey-form" method="post" className="grid grid-cols-2" onSubmit={submitAnswer}>
               {surveyData?.map((q, i) => (
                 <div key={i} className="flex flex-col">
                   <span className="mt-5 mb-1">{q.question}</span>
@@ -170,7 +174,7 @@ export default function Survey({ params }: Route.ComponentProps) {
           <p className="text-xs text-muted-foreground">
             10 questions · about 3 minutes
           </p>
-          <Button>Submit Survey</Button>
+          <Button type="submit" form="survey-form">Submit Survey</Button>
         </CardFooter>
       </Card>
       <Card className="flex flex-col">
