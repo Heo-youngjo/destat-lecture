@@ -1,0 +1,43 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-395dfb0723e2014a5e13fed5413214601d96e93c",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/SurveyFactory.sol": "project/contracts/SurveyFactory.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": [],
+      "viaIR": true
+    },
+    "sources": {
+      "project/contracts/Survey.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n//\nstruct Question {\n    string question;\n    string[] options;\n} //structure는 사이즈가 고정되어있다. type이 아무리 복합적이어도 고정이다.\n\nstruct Answer {\n    address respondent;\n    uint8[] answers;\n}\n\ncontract Survey {\n    //Key-Value storage\n    //key range\n    //0x000000000000000000000000000000000000000000000000000:0\n    //0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF : 2^256 -1\n    string public title; //0번슬롯 \n    string public description; //1번슬롯 32바이트보다 긴 문자열\n    uint256 public targetNumber; //2번슬롯 2-3번은 primitive type 그 슬롯에다가 그 값을 저장하는 타입\n    uint256 public rewardAmount; //3번슬롯 1ether가 나온다.\n    Question[] public questions; //4번슬롯 하지만 여기서는 array이기때문에 4번슬롯에 array의 사이즈만 들어간다.\n    Answer[] public answers; // 5번슬롯\n    //Question firstQuestion; 이런식으로 선언하면 슬롯을 두개 차지한다.\n    mapping (address => uint) testMap;\n    //primitive : (u)int(8~256), bool ,address\n    // memory , storage , calldata\n    constructor(\n        string memory _title,\n        string memory _description,\n        uint256 _targetNumber,\n        Question[] memory _questions\n    ) payable {\n        require(_targetNumber > 0, \"targetNumber must be > 0\");\n\n        title = _title;\n        description = _description;\n        targetNumber = _targetNumber;\n\n        // 1인당 지급할 보상금 계산\n        rewardAmount = msg.value / _targetNumber;\n        testMap[0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266] = 1000;\n        // memory -> storage 복사 (중첩 동적배열 안전하게 수동 복사)\n        for (uint256 i = 0; i < _questions.length; i++) {\n            questions.push();\n            Question storage q = questions[questions.length - 1];\n            q.question = _questions[i].question;\n\n            for (uint256 j = 0; j < _questions[i].options.length; j++) {\n                q.options.push(_questions[i].options[j]);\n            }\n        }\n    }\n\n    function submitAnswer(Answer calldata _answer) external {\n        // 질문 개수와 답변 개수가 일치하는지 확인\n        require(\n            _answer.answers.length == questions.length,\n            \"Mismatched answers length\"\n        );\n\n        // 목표 인원 미만일 때만 응답 허용\n        require(answers.length < targetNumber, \"This survey has been ended\");\n\n        // 실제 제출자와 응답자 주소 일치 확인\n        require(\n            _answer.respondent == msg.sender,\n            \"respondent must be msg.sender\"\n        );\n\n        answers.push(\n            Answer({\n                respondent: msg.sender,\n                answers: _answer.answers\n            })\n        );\n\n        // 응답자에게 보상금 지급\n        payable(msg.sender).transfer(rewardAmount);\n    }\n\n    function getQuestions() external view returns (Question[] memory) {\n        return questions;\n    }\n\n    function getAnswers() external view returns (Answer[] memory) {\n        return answers;\n    }\n\n    function getAnswersCount() external view returns (uint256) {\n        return answers.length;\n    }\n\n    function getBalance() external view returns (uint256) {\n        return address(this).balance;\n    }\n}"
+      },
+      "project/contracts/SurveyFactory.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.20;\n\nimport \"./Survey.sol\";\n\nstruct SurveySchema {\n    string title;\n    string description;\n    uint256 targetNumber;\n    Question[] questions;\n}\n\ncontract SurveyFactory {\n    event SurveyCreated(address surveyAddress);\n\n    uint256 public min_pool_amount;\n    uint256 public min_reward_amount;\n    Survey[] public surveys;\n\n    constructor(\n        uint256 _min_pool_amount,\n        uint256 _min_reward_amount\n    ) payable {\n        min_pool_amount = _min_pool_amount;\n        min_reward_amount = _min_reward_amount;\n    }\n\n    function createSurvey(SurveySchema calldata _survey) external payable {\n        require(_survey.targetNumber > 0, \"targetNumber must be > 0\");\n        require(msg.value >= min_pool_amount, \"Insufficient pool amount\");\n        require(\n            msg.value / _survey.targetNumber >= min_reward_amount,\n            \"Insufficient reward amount\"\n        );\n\n        Survey survey = new Survey{value: msg.value}(\n            _survey.title,\n            _survey.description,\n            _survey.targetNumber,\n            _survey.questions\n        );\n\n        surveys.push(survey);\n        emit SurveyCreated(address(survey));\n    }\n\n    function getSurveys() external view returns (Survey[] memory) {\n        return surveys;\n    }\n\n    function getSurveysCount() external view returns (uint256) {\n        return surveys.length;\n    }\n}"
+      }
+    }
+  }
+}

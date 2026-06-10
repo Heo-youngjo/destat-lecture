@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx react-router *)",
+      "Bash(npm run *)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.get\\('exports',{}\\).keys\\(\\)\\)[:20]\\)\")",
+      "Bash(npm install *)",
+      "Bash(npx supabase *)",
+      "Bash(npx tsc *)",
+      "Bash(sed -i '' 's/export const loader = async \\({ request }: Route.LoaderArgs\\)/export const clientLoader = async \\({ request }: Route.ClientLoaderArgs\\)/g; *)",
+      "Bash(sed -i '' 's/export const action = async \\({ request }: Route.ActionArgs\\)/export const clientAction = async \\({ request }: Route.ClientActionArgs\\)/g' /Users/heoyeongjo/destat-lecture/destat-ui/app/features/survey/pages/create-survey.tsx)"
+    ]
+  }
+}
