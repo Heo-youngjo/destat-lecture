@@ -18,9 +18,12 @@ export const getNumberData = async (
   if (lastWeek && thisWeek) {
     const lastWeekCount = lastWeek.reduce((sum, value) => sum + value.count, 0);
     const thisWeekCount = thisWeek.reduce((sum, value) => sum + value.count, 0);
+    const change = lastWeekCount > 0
+      ? Math.abs((thisWeekCount - lastWeekCount) / lastWeekCount * 100)
+      : thisWeekCount > 0 ? 100 : 0;
     return {
       value: thisWeekCount.toString(),
-      trendValue: ((thisWeekCount / (lastWeekCount || 1)) * 100).toFixed(1),
+      trendValue: change.toFixed(1),
       upAndDown: thisWeekCount > lastWeekCount,
     };
   } else {
@@ -51,7 +54,9 @@ export const getSurveyData = async (
     const thisWeekCount = thisWeek.length;
     return {
       value: thisWeekCount.toString(),
-      trendValue: ((thisWeekCount / (lastWeekCount || 1)) * 100).toFixed(1),
+      trendValue: (lastWeekCount > 0
+        ? Math.abs((thisWeekCount - lastWeekCount) / lastWeekCount * 100)
+        : thisWeekCount > 0 ? 100 : 0).toFixed(1),
       upAndDown: thisWeekCount > lastWeekCount,
     };
   } else {
